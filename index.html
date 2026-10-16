@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#18191c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>PocketVault OS v3.0 // Secure Cloud Producer Box</title>
+  <!-- Google Identity Services SDK for OAuth 2.0 Login & Drive Token -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    :root {
+      --chassis-bg: linear-gradient(145deg, #2b2d33 0%, #17181c 55%, #101114 100%);
+      --chassis-border: #3d4048;
+      --lcd-bg: #111615;
+      --lcd-panel: #18201e;
+      --lcd-highlight: #00e5a3;
+      --lcd-amber: #ffb84d;
+      --lcd-red: #ff5c6c;
+      --lcd-blue: #5ce1e6;
+      --lcd-purple: #b88cff;
+      --lcd-text: #e4f2ee;
+      --lcd-muted: #78928b;
+      --wheel-bg: radial-gradient(circle at 30% 30%, #26282e, #141519);
+      --wheel-center: linear-gradient(145deg, #2e3138, #191a1f);
+      --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at center, #1e2229 0%, #090a0d 100%);
+      font-family: var(--font-ui);
+      color: var(--lcd-text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    .device-wrapper {
+      width: 100%;
+      max-width: 980px;
+      min-height: 95vh;
+      margin: 12px;
+      background: var(--chassis-bg);
+      border: 2px solid var(--chassis-border);
+      border-radius: 36px;
+      box-shadow: 
+        0 28px 70px rgba(0, 0, 0, 0.85),
+        inset 0 2px 3px rgba(255, 255, 255, 0.15),
+        inset 0 -4px 10px rgba(0, 0, 0, 0.8);
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 20px;
+      padding: 24px;
+      position: relative;
+    }
+
+    @media (max-width: 820px) {
+      .device-wrapper {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+        margin: 0;
+        min-height: 100vh;
+        border-radius: 0;
+        border: none;
+        padding: 12px;
+        gap: 12px;
+      }
+    }
+
+    /* ================= LCD SCREEN ================= */
+    .lcd-bezel {
+      background: #080a0a;
+      border-radius: 20px;
+      padding: 10px;
+      box-shadow: 
+        inset 0 4px 12px rgba(0, 0, 0, 0.95),
+        0 1px 1px rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      height: 640px;
+    }
+
+    @media (max-width: 820px) {
+      .lcd-bezel {
+        height: 63vh;
+        min-height: 420px;
+      }
+    }
+
+    .lcd-screen {
+      flex: 1;
+      background: var(--lcd-bg);
+      border-radius: 12px;
+      border: 1px solid #23302d;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 0 35px rgba(0, 229, 163, 0.04);
+    }
+
+    .lcd-screen::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.18) 50%
+      );
+      background-size: 100% 4px;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    /* ================= BOOT LOCK SCREEN OVERLAY ================= */
+    .lock-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, #141f1c 0%, #090d0c 100%);
+      z-index: 25;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .lock-overlay.hidden {
+      display: none;
+    }
+
+    .lock-box {
+      background: #121a18;
+      border: 1px solid #283d37;
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      max-width: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.7);
+    }
+
+    .pin-dots {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 4px 0;
+    }
+
+    .pin-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--lcd-highlight);
+      background: transparent;
+    }
+
+    .pin-dot.filled {
+      background: var(--lcd-highlight);
+      box-shadow: 0 0 8px var(--lcd-highlight);
+    }
+
+    .pin-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .pin-btn {
+      background: #1a2623;
+      border: 1px solid #2c403b;
+      color: var(--lcd-text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .pin-btn:active {
+      background: var(--lcd-highlight);
+      color: #06120f;
+    }
+
+    .google-auth-btn {
+      background: rgba(92, 225, 230, 0.14);
+      border: 1px solid var(--lcd-blue);
+      color: var(--lcd-blue);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .google-auth-btn:hover {
+      background: var(--lcd-blue);
+      color: #061214;
+    }
+
+    /* ================= TOP OS STATUS BAR ================= */
+    .os-statusbar {
+      height: 34px;
+      background: linear-gradient(180deg, #1d2825 0%, #131a18 100%);
+      border-bottom: 1px solid #263531;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.4px;
+      color: var(--lcd-muted);
+    }
+
+    .os-title {
+      color: var(--lcd-highlight);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--lcd-highlight);
+      box-shadow: 0 0 6px var(--lcd-highlight);
+    }
+
+    .os-status-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .drive-pill {
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(92, 225, 230, 0.12);
+      color: var(--lcd-blue);
+      border: 1px solid rgba(92, 225, 230, 0.3);
+      cursor: pointer;
+      font-size: 10px;
+    }
+
+    .lock-pill {
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(255, 92, 108, 0.14);
+      color: var(--lcd-red);
+      border: 1px solid rgba(255, 92, 108, 0.35);
+      cursor: pointer;
+      font-size: 10px;
+    }
+
+    /* Split Screen Layout */
+    .os-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 205px 1fr;
+      overflow: hidden;
+    }
+
+    @media (max-width: 560px) {
+      .os-body {
+        grid-template-columns: 145px 1fr;
+      }
+    }
+
+    .os-sidebar {
+      background: var(--lcd-panel);
+      border-right: 1px solid #263531;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--lcd-muted);
+      padding: 8px 10px 4px;
+      letter-spacing: 0.8px;
+    }
+
+    .menu-list {
+      list-style: none;
+      margin: 0;
+      padding: 4px 6px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .menu-item {
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--lcd-text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 2px;
+    }
+
+    .menu-item:hover {
+      background: rgba(0, 229, 163, 0.1);
+    }
+
+    .menu-item.active {
+      background: var(--lcd-highlight);
+      color: #06110e;
+      font-weight: 700;
+    }
+
+    .menu-item .badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      opacity: 0.85;
+    }
+
+    .track-list-container {
+      border-top: 1px solid #263531;
+      flex: 1.3;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-search {
+      margin: 6px;
+      padding: 5px 8px;
+      background: #0d1211;
+      border: 1px solid #263531;
+      border-radius: 5px;
+      color: var(--lcd-text);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      outline: none;
+      user-select: text;
+    }
+
+    .os-workspace {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #101514;
+    }
+
+    .workspace-tabs {
+      display: flex;
+      border-bottom: 1px solid #263531;
+      background: #141b19;
+      padding: 0 6px;
+      gap: 2px;
+      overflow-x: auto;
+    }
+
+    .ws-tab {
+      padding: 8px 8px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--lcd-muted);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .ws-tab.active {
+      color: var(--lcd-highlight);
+      border-bottom-color: var(--lcd-highlight);
+      font-weight: 700;
+    }
+
+    .ws-content {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ws-content.active {
+      display: flex;
+    }
+
+    .track-header-card {
+      background: #161f1d;
+      border: 1px solid #263531;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .track-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .track-title-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px dashed transparent;
+      color: var(--lcd-text);
+      font-size: 15px;
+      font-weight: 700;
+      width: 100%;
+      outline: none;
+      user-select: text;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .tag-select, .meta-input {
+      background: #0d1211;
+      border: 1px solid #2b3b37;
+      color: var(--lcd-text);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      outline: none;
+      user-select: text;
+    }
+
+    .status-badge {
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .status-demo { background: rgba(255, 184, 77, 0.16); color: var(--lcd-amber); border: 1px solid var(--lcd-amber); }
+    .status-tomix { background: rgba(255, 92, 108, 0.16); color: var(--lcd-red); border: 1px solid var(--lcd-red); }
+    .status-verse { background: rgba(184, 140, 255, 0.16); color: var(--lcd-purple); border: 1px solid var(--lcd-purple); }
+    .status-finished { background: rgba(0, 229, 163, 0.16); color: var(--lcd-highlight); border: 1px solid var(--lcd-highlight); }
+
+    .visualizer-box {
+      background: #0b0f0e;
+      border: 1px solid #22302c;
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    canvas#waveformCanvas {
+      width: 100%;
+      height: 50px;
+      display: block;
+    }
+
+    .transport-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--lcd-muted);
+    }
+
+    .seek-slider {
+      width: 100%;
+      accent-color: var(--lcd-highlight);
+      cursor: pointer;
+      height: 4px;
+    }
+
+    .audio-source-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #141c1a;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px dashed #2b3d38;
+      font-size: 11px;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .btn-small {
+      background: #1f2e2a;
+      color: var(--lcd-highlight);
+      border: 1px solid #2f4741;
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .btn-small:hover {
+      background: var(--lcd-highlight);
+      color: #07120f;
+    }
+
+    .btn-blue {
+      background: rgba(92, 225, 230, 0.15);
+      color: var(--lcd-blue);
+      border: 1px solid var(--lcd-blue);
+    }
+
+    .btn-blue:hover {
+      background: var(--lcd-blue);
+      color: #051314;
+    }
+
+    .lyrics-toolbar {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .lyrics-textarea {
+      flex: 1;
+      min-height: 210px;
+      background: #0c1110;
+      border: 1px solid #263531;
+      border-radius: 6px;
+      padding: 10px;
+      color: var(--lcd-text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.55;
+      resize: none;
+      outline: none;
+      user-select: text;
+    }
+
+    .repair-input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .repair-input {
+      flex: 1;
+      background: #0c1110;
+      border: 1px solid #263531;
+      border-radius: 5px;
+      padding: 6px 8px;
+      color: var(--lcd-text);
+      font-size: 12px;
+      outline: none;
+      user-select: text;
+    }
+
+    .repair-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .repair-item {
+      background: #151e1c;
+      border: 1px solid #243330;
+      border-radius: 6px;
+      padding: 7px 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .repair-item.done {
+      opacity: 0.5;
+      text-decoration: line-through;
+    }
+
+    .repair-time-chip {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 5px;
+      background: rgba(255, 184, 77, 0.15);
+      color: var(--lcd-amber);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .sample-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px;
+    }
+
+    .sample-pad {
+      background: #151f1d;
+      border: 1px solid #293d38;
+      border-radius: 7px;
+      padding: 8px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sample-pad.playing {
+      border-color: var(--lcd-highlight);
+      background: rgba(0, 229, 163, 0.14);
+    }
+
+    .sample-name {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sample-pack-tag {
+      font-size: 10px;
+      color: var(--lcd-muted);
+    }
+
+    .cloud-log {
+      background: #0a0e0d;
+      border: 1px solid #23332f;
+      border-radius: 6px;
+      padding: 8px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--lcd-blue);
+      min-height: 70px;
+      max-height: 120px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    /* ================= RIGHT PANEL: CLICK WHEEL ================= */
+    .hardware-controls {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 6px;
+    }
+
+    .quick-action-strip {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .hw-btn {
+      background: linear-gradient(180deg, #2a2d34 0%, #1b1d22 100%);
+      border: 1px solid #3a3e47;
+      color: #d0d7de;
+      border-radius: 10px;
+      padding: 9px 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+      text-align: center;
+    }
+
+    .hw-btn:active {
+      transform: translateY(1px);
+      border-color: var(--lcd-highlight);
+      color: var(--lcd-highlight);
+    }
+
+    .click-wheel {
+      width: 245px;
+      height: 245px;
+      border-radius: 50%;
+      background: var(--wheel-bg);
+      border: 3px solid #343842;
+      box-shadow: 
+        0 14px 32px rgba(0, 0, 0, 0.75),
+        inset 0 2px 5px rgba(255, 255, 255, 0.08);
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 14px 0;
+    }
+
+    @media (max-width: 820px) {
+      .click-wheel {
+        width: 205px;
+        height: 205px;
+        margin: 6px 0;
+      }
+    }
+
+    .wheel-btn {
+      position: absolute;
+      background: transparent;
+      border: none;
+      color: #9ba5b0;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      padding: 10px;
+    }
+
+    .wheel-top { top: 12px; }
+    .wheel-bottom { bottom: 12px; }
+    .wheel-left { left: 14px; }
+    .wheel-right { right: 14px; }
+
+    .wheel-center-btn {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: var(--wheel-center);
+      border: 2px solid #3c404c;
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.1), 0 4px 10px rgba(0,0,0,0.6);
+      color: var(--lcd-highlight);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .hardware-footer {
+      width: 100%;
+      background: #14161a;
+      border: 1px solid #2b2e36;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--lcd-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    input[type="file"] { display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="device-wrapper">
+    <!-- ================= LEFT / TOP: BACKLIT LCD SCREEN ================= -->
+    <div class="lcd-bezel">
+      <div class="lcd-screen">
+
+        <!-- HARDWARE BOOT LOCK OVERLAY -->
+        <div class="lock-overlay" id="lockOverlay">
+          <div class="lock-box">
+            <div style="font-family:var(--font-mono); font-size:13px; color:var(--lcd-highlight); font-weight:700;">
+              🔒 POCKETVAULT OS // LOCKED
+            </div>
+            <div id="lockMessage" style="font-family:var(--font-mono); font-size:11px; color:var(--lcd-muted);">
+              Authenticate via Google or Studio PIN (Default: 1234)
+            </div>
+
+            <!-- 4-Dot PIN Indicator -->
+            <div class="pin-dots">
+              <span class="pin-dot" id="dot0"></span>
+              <span class="pin-dot" id="dot1"></span>
+              <span class="pin-dot" id="dot2"></span>
+              <span class="pin-dot" id="dot3"></span>
+            </div>
+
+            <!-- Tactile Keypad -->
+            <div class="pin-pad">
+              <button class="pin-btn" data-pin="1">1</button>
+              <button class="pin-btn" data-pin="2">2</button>
+              <button class="pin-btn" data-pin="3">3</button>
+              <button class="pin-btn" data-pin="4">4</button>
+              <button class="pin-btn" data-pin="5">5</button>
+              <button class="pin-btn" data-pin="6">6</button>
+              <button class="pin-btn" data-pin="7">7</button>
+              <button class="pin-btn" data-pin="8">8</button>
+              <button class="pin-btn" data-pin="9">9</button>
+              <button class="pin-btn" data-pin="CLR" style="color:var(--lcd-red)">CLR</button>
+              <button class="pin-btn" data-pin="0">0</button>
+              <button class="pin-btn" data-pin="OK" style="color:var(--lcd-highlight)">OK</button>
+            </div>
+
+            <!-- Google OAuth Unlock & Sync Button -->
+            <button class="google-auth-btn" id="lockGoogleSignInBtn">
+              <span>G</span>
+              <span>UNLOCK & SYNC WITH GOOGLE</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Top OS Bar -->
+        <div class="os-statusbar">
+          <div class="os-title">
+            <span class="status-dot"></span>
+            <span>POCKETVAULT v3.0</span>
+          </div>
+          <div class="os-status-right">
+            <span id="authUserBadge" style="color:var(--lcd-highlight)">LOCAL PIN</span>
+            <span class="drive-pill" id="topDriveStatusBtn">DRIVE: OFFLINE</span>
+            <span class="lock-pill" id="lockDeviceBtn" title="Lock Vault Immediately">LOCK OS</span>
+          </div>
+        </div>
+
+        <!-- Split Screen Body -->
+        <div class="os-body">
+          <!-- Left Sidebar -->
+          <div class="os-sidebar">
+            <div class="sidebar-section-label">Release / Status</div>
+            <ul class="menu-list" id="filterMenuList">
+              <li class="menu-item active" data-filter="ALL"><span>All Projects</span><span class="badge" id="countAll">0</span></li>
+              <li class="menu-item" data-filter="Album"><span>Albums</span><span class="badge">LP</span></li>
+              <li class="menu-item" data-filter="Mixtape"><span>Mixtapes</span><span class="badge">TAPE</span></li>
+              <li class="menu-item" data-filter="Single"><span>Singles</span><span class="badge">1X</span></li>
+              <li class="menu-item" data-filter="Demo"><span>Tag: Demos</span><span class="badge" style="color:var(--lcd-amber)">●</span></li>
+              <li class="menu-item" data-filter="To Mix"><span>Tag: To Mix</span><span class="badge" style="color:var(--lcd-red)">●</span></li>
+              <li class="menu-item" data-filter="Verse Change"><span>Tag: Verse Chg</span><span class="badge" style="color:var(--lcd-purple)">●</span></li>
+              <li class="menu-item" data-filter="Finished"><span>Tag: Finished</span><span class="badge" style="color:var(--lcd-highlight)">●</span></li>
+            </ul>
+
+            <div class="track-list-container">
+              <div class="sidebar-section-label">Tracks in Box</div>
+              <input type="text" class="sidebar-search" id="searchBox" placeholder="Filter songs / BPM..." />
+              <ul class="menu-list" id="songMenuList"></ul>
+            </div>
+          </div>
+
+          <!-- Right Workspace -->
+          <div class="os-workspace">
+            <div class="workspace-tabs">
+              <button class="ws-tab active" data-tab="tabPlayer">1. DECK</button>
+              <button class="ws-tab" data-tab="tabLyrics">2. LYRICS</button>
+              <button class="ws-tab" data-tab="tabRepairs">3. FIXES</button>
+              <button class="ws-tab" data-tab="tabSamples">4. PACKS</button>
+              <button class="ws-tab" data-tab="tabCloud">5. CLOUD / LOCK</button>
+            </div>
+
+            <!-- TAB 1: DECK & TAGS -->
+            <div class="ws-content active" id="tabPlayer">
+              <div class="track-header-card">
+                <div class="track-title-row">
+                  <input type="text" id="songTitleInput" class="track-title-input" value="" placeholder="Track Title..." />
+                  <span id="statusBadge" class="status-badge status-demo">DEMO</span>
+                </div>
+                <div class="meta-row">
+                  <label>Type:</label>
+                  <select id="releaseTypeSelect" class="tag-select">
+                    <option value="Album">Album</option>
+                    <option value="Mixtape">Mixtape</option>
+                    <option value="Single">Single</option>
+                  </select>
+
+                  <label>Project:</label>
+                  <input type="text" id="projectNameInput" class="meta-input" style="width:90px" placeholder="Album/Tape" />
+
+                  <label>Status:</label>
+                  <select id="statusTagSelect" class="tag-select">
+                    <option value="Demo">Demo</option>
+                    <option value="To Mix">To Mix</option>
+                    <option value="Verse Change">Verse Change</option>
+                    <option value="Finished">Finished</option>
+                  </select>
+                </div>
+                <div class="meta-row">
+                  <label>BPM:</label>
+                  <input type="number" id="bpmInput" class="meta-input" style="width:55px" value="142" />
+                  <label>Key:</label>
+                  <input type="text" id="keyInput" class="meta-input" style="width:55px" value="F Min" />
+                  <label>Cloud Audio:</label>
+                  <span id="driveFileStatusLabel" style="color:var(--lcd-muted)">LOCAL ONLY</span>
+                </div>
+              </div>
+
+              <!-- Waveform & Transport -->
+              <div class="visualizer-box">
+                <canvas id="waveformCanvas" width="420" height="50"></canvas>
+                <input type="range" id="seekSlider" class="seek-slider" min="0" max="100" value="0" step="0.1" />
+                <div class="transport-bar">
+                  <span id="currentTimeLabel">0:00</span>
+                  <span id="playStateLabel">READY</span>
+                  <span id="durationLabel">0:16</span>
+                </div>
+              </div>
+
+              <!-- Audio Bounce & Cloud Drive Controls -->
+              <div class="audio-source-bar">
+                <span id="fileNameDisplay" style="max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Audio: Synth Preview</span>
+                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                  <button class="btn-small" id="uploadAudioBtn">LOAD .WAV/.MP3</button>
+                  <button class="btn-small btn-blue" id="pushBounceDriveBtn" title="Upload this song's WAV/MP3 bounce to Google Drive">☁️ PUSH AUDIO</button>
+                  <button class="btn-small btn-blue" id="pullBounceDriveBtn" title="Stream/Download this song's bounce from Google Drive">☁️ PULL AUDIO</button>
+                  <input type="file" id="audioFileInput" accept=".mp3,.wav,.ogg,.flac,audio/*" />
+                </div>
+              </div>
+
+              <!-- Open Repairs Preview -->
+              <div class="track-header-card" style="flex:1; overflow-y:auto;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-family:var(--font-mono); font-size:11px; color:var(--lcd-amber);">OPEN TO-REPAIR ITEMS</span>
+                  <button class="btn-small" id="jumpToRepairsBtn">+ ADD NOTE</button>
+                </div>
+                <ul class="repair-list" id="deckRepairPreview"></ul>
+              </div>
+            </div>
+
+            <!-- TAB 2: LYRICS EDITOR -->
+            <div class="ws-content" id="tabLyrics">
+              <div class="lyrics-toolbar">
+                <button class="btn-small" data-insert="[INTRO]\n">+ [INTRO]</button>
+                <button class="btn-small" data-insert="[VERSE 1]\n">+ [VERSE]</button>
+                <button class="btn-small" data-insert="[HOOK]\n">+ [HOOK]</button>
+                <button class="btn-small" data-insert="[BEAT SWITCH]\n">+ [BEAT SWITCH]</button>
+                <button class="btn-small" data-insert="[OUTRO]\n">+ [OUTRO]</button>
+              </div>
+              <textarea id="lyricsTextarea" class="lyrics-textarea" placeholder="Write bars, cadence notes, ad-lib cues..."></textarea>
+            </div>
+
+            <!-- TAB 3: MIX & REPAIR CHECKLIST -->
+            <div class="ws-content" id="tabRepairs">
+              <div class="repair-input-row">
+                <input type="text" id="newRepairInput" class="repair-input" placeholder="e.g. Cut muddy 250Hz on verse vocal, change 2nd 808..." />
+                <button class="btn-small" id="addRepairStampBtn">+ STAMP TIME</button>
+              </div>
+              <ul class="repair-list" id="fullRepairList"></ul>
+            </div>
+
+            <!-- TAB 4: DRUM KITS & SAMPLE PACKS -->
+            <div class="ws-content" id="tabSamples">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-family:var(--font-mono); font-size:11px; color:var(--lcd-muted);">TAP PAD TO AUDITION (.WAV / .MP3)</span>
+                <button class="btn-small" id="uploadSampleBtn">+ IMPORT SAMPLES</button>
+                <input type="file" id="sampleFileInput" accept=".mp3,.wav,audio/*" multiple />
+              </div>
+              <div class="sample-grid" id="sampleGrid"></div>
+            </div>
+
+            <!-- TAB 5: GOOGLE DRIVE SYNC & SECURITY SETTINGS -->
+            <div class="ws-content" id="tabCloud">
+              <div class="track-header-card">
+                <div style="font-family:var(--font-mono); font-size:11px; color:var(--lcd-highlight); font-weight:700;">
+                  1. GOOGLE OAUTH 2.0 & OWNER LOCK
+                </div>
+                <div class="meta-row">
+                  <label style="width:105px;">Google Client ID:</label>
+                  <input type="text" id="gClientIdInput" class="meta-input" style="flex:1;" placeholder="xxxx.apps.googleusercontent.com" />
+                </div>
+                <div class="meta-row">
+                  <label style="width:105px;">Allowed Email:</label>
+                  <input type="text" id="allowedEmailInput" class="meta-input" style="flex:1;" placeholder="your.email@gmail.com (blocks everyone else)" />
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+                  <button class="btn-small btn-blue" id="connectGoogleDriveBtn">🔑 SIGN IN & CONNECT GOOGLE DRIVE</button>
+                  <button class="btn-small" id="saveSecurityConfigBtn">SAVE AUTH CONFIG</button>
+                </div>
+              </div>
+
+              <div class="track-header-card">
+                <div style="font-family:var(--font-mono); font-size:11px; color:var(--lcd-blue); font-weight:700;">
+                  2. GOOGLE DRIVE VAULT SYNC (Folder: /PocketVault_Studio)
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <button class="btn-small btn-blue" id="syncPushDbBtn">⬆️ PUSH VAULT DB TO DRIVE</button>
+                  <button class="btn-small btn-blue" id="syncPullDbBtn">⬇️ PULL VAULT DB FROM DRIVE</button>
+                  <button class="btn-small" id="exportLocalJsonBtn">💾 EXPORT BACKUP JSON</button>
+                </div>
+                <div class="cloud-log" id="cloudConsoleLog">Ready. Configure Google Client ID above to sync directly with your personal Google Drive.</div>
+              </div>
+
+              <div class="track-header-card">
+                <div style="font-family:var(--font-mono); font-size:11px; color:var(--lcd-amber); font-weight:700;">
+                  3. OFFLINE STUDIO PIN CODE
+                </div>
+                <div class="meta-row">
+                  <label>Set 4-Digit PIN:</label>
+                  <input type="password" id="newPinInput" class="meta-input" maxlength="4" style="width:70px;" placeholder="1234" />
+                  <button class="btn-small" id="savePinBtn">UPDATE PIN</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= RIGHT / BOTTOM: CLICK WHEEL ================= -->
+    <div class="hardware-controls">
+      <div class="quick-action-strip">
+        <button class="hw-btn" id="newProjectBtn">+ NEW SONG</button>
+        <button class="hw-btn" id="cycleStatusBtn">TAG STATUS</button>
+        <button class="hw-btn" id="deleteSongBtn">DEL TRACK</button>
+      </div>
+
+      <div class="click-wheel">
+        <button class="wheel-btn wheel-top" id="wheelMenuBtn">MENU / TAB</button>
+        <button class="wheel-btn wheel-left" id="wheelPrevBtn">|&lt;&lt;</button>
+        <button class="wheel-btn wheel-right" id="wheelNextBtn">&gt;&gt;|</button>
+        <button class="wheel-btn wheel-bottom" id="wheelPlayBtn">PLAY / PAUSE</button>
+        <button class="wheel-center-btn" id="wheelCenterBtn">
+          <span>STAMP</span>
+          <span style="font-size:8px; color:var(--lcd-muted)">TIME NOTE</span>
+        </button>
+      </div>
+
+      <div class="hardware-footer">
+        <span id="securityFooterStatus">SECURITY: PIN + OAUTH</span>
+        <span id="activePackCount">PACKS: 6 PADS</span>
+      </div>
+    </div>
+  </div>
+
+  <audio id="htmlAudioPlayer"></audio>
+
+  <script>
+    /**************************************************************
+     * 1. DEFAULT DATA & SECURITY CONFIG
+     **************************************************************/
+    const DEFAULT_SONGS = [
+      {
+        id: "song-1",
+        title: "NIGHTSHADE (V3 BOUNCE)",
+        project: "UTOPIA TAPES",
+        releaseType: "Mixtape",
+        status: "To Mix",
+        bpm: 144,
+        key: "F# Min",
+        audioFormat: "INTERNAL SYNTH",
+        fileName: "Nightshade_v3_rough.wav",
+        driveAudioFileId: null,
+        lyrics: "[INTRO]\n(Reversed synth pad swells, low-pass filter opens)\nYeah, check the headphone bleed...\n\n[VERSE 1]\nLate night rendering the stem bounce\nSub-bass rattling the window frame out\nSwitch the cadence on the fourth bar\nDouble-tracked baritone under neon stars",
+        repairs: [
+          { id: "r1", time: "0:04", text: "Soothe harsh 3.2kHz whistle on main vocal take", done: false },
+          { id: "r2", time: "0:09", text: "Tune 808 tail slide up +2 semitones before hook", done: false }
+        ]
+      },
+      {
+        id: "song-2",
+        title: "CHROME HORIZON",
+        project: "SOLARIS LP",
+        releaseType: "Album",
+        status: "Verse Change",
+        bpm: 128,
+        key: "C Min",
+        audioFormat: "INTERNAL SYNTH",
+        fileName: "Chrome_Horizon_demo2.mp3",
+        driveAudioFileId: null,
+        lyrics: "[HOOK]\nChrome horizon in the rearview\nEvery synth layer cutting clear through\n\n[VERSE 2 - NEEDS REWRITE]\nRewrite second half of Verse 2.",
+        repairs: [
+          { id: "r4", time: "0:06", text: "Re-record Verse 2 bars 5-8 closer to condenser mic", done: false }
+        ]
+      }
+    ];
+
+    const DEFAULT_SAMPLES = [
+      { id: "smp-1", name: "808_Spin_Dist.wav", pack: "DARK TRAP KIT", synthType: "808" },
+      { id: "smp-2", name: "Snare_Rim_Crack.wav", pack: "STREET DRUMS", synthType: "snare" },
+      { id: "smp-3", name: "HiHat_Crisp_Tick.wav", pack: "DARK TRAP KIT", synthType: "hat" },
+      { id: "smp-4", name: "Kick_Punch_Thump.wav", pack: "ANALOG KICKS", synthType: "kick" },
+      { id: "smp-5", name: "Synth_Stab_Min9.wav", pack: "PSYCH SYNTHS", synthType: "chord" },
+      { id: "smp-6", name: "Tape_Stop_FX.mp3", pack: "TRANSITIONS", synthType: "fx" }
+    ];
+
+    /**************************************************************
+     * 2. INDEXED-DB STORAGE
+     **************************************************************/
+    const DB_NAME = "PocketVaultSecureDB";
+    const DB_VERSION = 1;
+    let dbInstance = null;
+
+    function openVaultDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id" });
+          if (!db.objectStoreNames.contains("audioBlobs")) db.createObjectStore("audioBlobs", { keyPath: "id" });
+          if (!db.objectStoreNames.contains("samples")) db.createObjectStore("samples", { keyPath: "id" });
+        };
+        req.onsuccess = () => { dbInstance = req.result; resolve(dbInstance); };
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function dbPut(storeName, item) {
+      return new Promise((resolve, reject) => {
+        if (!dbInstance) return resolve();
+        const tx = dbInstance.transaction(storeName, "readwrite");
+        tx.objectStore(storeName).put(item);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    function dbGetAll(storeName) {
+      return new Promise((resolve) => {
+        if (!dbInstance) return resolve([]);
+        const tx = dbInstance.transaction(storeName, "readonly");
+        const req = tx.objectStore(storeName).getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      });
+    }
+
+    function dbGet(storeName, key) {
+      return new Promise((resolve) => {
+        if (!dbInstance) return resolve(null);
+        const tx = dbInstance.transaction(storeName, "readonly");
+        const req = tx.objectStore(storeName).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    function dbDelete(storeName, key) {
+      return new Promise((resolve) => {
+        if (!dbInstance) return resolve();
+        const tx = dbInstance.transaction(storeName, "readwrite");
+        tx.objectStore(storeName).delete(key);
+        tx.oncomplete = () => resolve();
+      });
+    }
+
+    /**************************************************************
+     * 3. LOCK SCREEN & GOOGLE OAUTH / DRIVE API ENGINE
+     **************************************************************/
+    let enteredPin = "";
+    let googleAccessToken = null;
+    let tokenClient = null;
+    let driveFolderId = null;
+
+    function getPinCode() {
+      return localStorage.getItem("pv_studio_pin") || "1234";
+    }
+
+    function getSecurityConfig() {
+      return {
+        clientId: localStorage.getItem("pv_google_client_id") || "",
+        allowedEmail: (localStorage.getItem("pv_allowed_email") || "").trim().toLowerCase()
+      };
+    }
+
+    function logCloud(msg) {
+      const box = document.getElementById("cloudConsoleLog");
+      const time = new Date().toLocaleTimeString();
+      box.textContent = `[${time}] ${msg}\n` + box.textContent;
+    }
+
+    function updatePinDots() {
+      for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById("dot" + i);
+        dot.classList.toggle("filled", i < enteredPin.length);
+      }
+    }
+
+    function unlockVault(methodLabel) {
+      document.getElementById("lockOverlay").classList.add("hidden");
+      document.getElementById("authUserBadge").textContent = methodLabel;
+      enteredPin = "";
+      updatePinDots();
+    }
+
+    function lockVault() {
+      stopPlayback();
+      enteredPin = "";
+      updatePinDots();
+      document.getElementById("lockMessage").textContent = "Vault Locked. Enter Studio PIN or Google Login.";
+      document.getElementById("lockOverlay").classList.remove("hidden");
+    }
+
+    // Initialize Google Identity Services OAuth Token Client
+    function triggerGoogleLogin() {
+      const { clientId, allowedEmail } = getSecurityConfig();
+      if (!clientId) {
+        alert("Paste your Google OAuth Client ID in Tab 5 (CLOUD / LOCK) first! For now, use PIN 1234 to unlock.");
+        return;
+      }
+      if (!window.google || !window.google.accounts) {
+        alert("Google Identity SDK is still loading or you are offline.");
+        return;
+      }
+
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: "https://www.googleapis.com/auth/drive.file email profile",
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error) {
+            logCloud("OAuth Error: " + tokenResponse.error);
+            return;
+          }
+          googleAccessToken = tokenResponse.access_token;
+
+          // Verify User Identity against Allowed Email Whitelist
+          try {
+            const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+              headers: { Authorization: `Bearer ${googleAccessToken}` }
+            });
+            const profile = await res.json();
+            const userEmail = (profile.email || "").toLowerCase();
+
+            if (allowedEmail && userEmail !== allowedEmail) {
+              google.accounts.oauth2.revoke(googleAccessToken, () => {});
+              googleAccessToken = null;
+              document.getElementById("lockMessage").textContent = `ACCESS DENIED: ${userEmail} is not authorized!`;
+              logCloud(`Blocked unauthorized login attempt from: ${userEmail}`);
+              return;
+            }
+
+            unlockVault(userEmail || "GOOGLE AUTH");
+            document.getElementById("topDriveStatusBtn").textContent = "DRIVE: ONLINE";
+            logCloud(`Authenticated as ${userEmail}. Initializing /PocketVault_Studio folder...`);
+            await ensureDriveFolder();
+          } catch (err) {
+            logCloud("Auth verification failed: " + err.message);
+          }
+        }
+      });
+
+      tokenClient.requestAccessToken({ prompt: "consent" });
+    }
+
+    // Find or Create '/PocketVault_Studio' folder on Google Drive
+    async function ensureDriveFolder() {
+      if (!googleAccessToken) return null;
+      if (driveFolderId) return driveFolderId;
+
+      const q = encodeURIComponent("name='PocketVault_Studio' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+        headers: { Authorization: `Bearer ${googleAccessToken}` }
+      });
+      const data = await searchRes.json();
+
+      if (data.files && data.files.length > 0) {
+        driveFolderId = data.files[0].id;
+        logCloud(`Connected to existing Drive folder (ID: ${driveFolderId.slice(0, 8)}...)`);
+        return driveFolderId;
+      }
+
+      // Create folder if not found
+      const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${googleAccessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: "PocketVault_Studio",
+          mimeType: "application/vnd.google-apps.folder"
+        })
+      });
+      const created = await createRes.json();
+      driveFolderId = created.id;
+      logCloud(`Created new /PocketVault_Studio folder on Google Drive.`);
+      return driveFolderId;
+    }
+
+    // Upload or Update JSON Database or Audio Blob on Google Drive (Multipart Upload)
+    async function uploadFileToDrive(fileName, mimeType, blobOrString, existingFileId = null) {
+      if (!googleAccessToken) {
+        alert("Sign in to Google Drive in Tab 5 first!");
+        return null;
+      }
+      const folderId = await ensureDriveFolder();
+      const metadata = { name: fileName, mimeType };
+      if (!existingFileId && folderId) {
+        metadata.parents = [folderId];
+      }
+
+      const form = new FormData();
+      form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+      form.append("file", blobOrString instanceof Blob ? blobOrString : new Blob([blobOrString], { type: mimeType }));
+
+      const url = existingFileId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart&fields=id,name`
+        : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name";
+
+      const res = await fetch(url, {
+        method: existingFileId ? "PATCH" : "POST",
+        headers: { Authorization: `Bearer ${googleAccessToken}` },
+        body: form
+      });
+      return await res.json();
+    }
+
+    // Push All Projects Metadata/Lyrics/Repairs JSON to Drive
+    async function pushVaultDbToDrive() {
+      try {
+        logCloud("Pushing pocketvault_db.json to Google Drive...");
+        const folderId = await ensureDriveFolder();
+        const q = encodeURIComponent(`name='pocketvault_db.json' and '${folderId}' in parents and trashed=false`);
+        const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+          headers: { Authorization: `Bearer ${googleAccessToken}` }
+        });
+        const searchData = await searchRes.json();
+        const existingId = searchData.files && searchData.files[0] ? searchData.files[0].id : null;
+
+        const payload = JSON.stringify({ updatedAt: new Date().toISOString(), songs }, null, 2);
+        const result = await uploadFileToDrive("pocketvault_db.json", "application/json", payload, existingId);
+        logCloud(`Vault DB synced to Drive! (File ID: ${result.id.slice(0, 8)}...)`);
+      } catch (err) {
+        logCloud("Push DB failed: " + err.message);
+      }
+    }
+
+    // Pull Projects Metadata/Lyrics/Repairs JSON from Drive
+    async function pullVaultDbFromDrive() {
+      try {
+        logCloud("Searching Drive for pocketvault_db.json...");
+        const folderId = await ensureDriveFolder();
+        const q = encodeURIComponent(`name='pocketvault_db.json' and '${folderId}' in parents and trashed=false`);
+        const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+          headers: { Authorization: `Bearer ${googleAccessToken}` }
+        });
+        const searchData = await searchRes.json();
+        if (!searchData.files || searchData.files.length === 0) {
+          logCloud("No pocketvault_db.json found in Drive yet.");
+          return;
+        }
+
+        const fileId = searchData.files[0].id;
+        const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+          headers: { Authorization: `Bearer ${googleAccessToken}` }
+        });
+        const cloudData = await fileRes.json();
+        if (cloudData.songs && Array.isArray(cloudData.songs)) {
+          songs = cloudData.songs;
+          for (const s of songs) await dbPut("songs", s);
+          await selectSong(songs[0].id);
+          logCloud(`Pulled ${songs.length} songs from Google Drive!`);
+        }
+      } catch (err) {
+        logCloud("Pull DB failed: " + err.message);
+      }
+    }
+
+    // Push Current Song's WAV/MP3 Audio Bounce to Google Drive
+    async function pushCurrentAudioToDrive() {
+      const song = getCurrentSong();
+      if (!song) return;
+      const storedBlobObj = await dbGet("audioBlobs", song.id);
+      if (!storedBlobObj || !storedBlobObj.blob) {
+        alert("Load a local .WAV or .MP3 file onto this track first before pushing to Drive.");
+        return;
+      }
+      try {
+        logCloud(`Uploading ${song.fileName} to Google Drive...`);
+        const res = await uploadFileToDrive(
+          song.fileName,
+          storedBlobObj.blob.type || "audio/wav",
+          storedBlobObj.blob,
+          song.driveAudioFileId
+        );
+        if (res && res.id) {
+          song.driveAudioFileId = res.id;
+          await saveCurrentSong();
+          document.getElementById("driveFileStatusLabel").textContent = "SYNCED ON DRIVE";
+          document.getElementById("driveFileStatusLabel").style.color = "var(--lcd-highlight)";
+          logCloud(`Uploaded ${song.fileName} to Drive! Now pushing updated DB...`);
+          await pushVaultDbToDrive();
+        }
+      } catch (err) {
+        logCloud("Audio upload failed: " + err.message);
+      }
+    }
+
+    // Pull Current Song's WAV/MP3 Audio Bounce from Google Drive into local IndexedDB
+    async function pullCurrentAudioFromDrive() {
+      const song = getCurrentSong();
+      if (!song || !song.driveAudioFileId) {
+        alert("This track doesn't have a linked Google Drive audio file ID yet.");
+        return;
+      }
+      if (!googleAccessToken) {
+        alert("Sign in to Google Drive in Tab 5 first!");
+        return;
+      }
+      try {
+        logCloud(`Downloading ${song.fileName} from Google Drive...`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${song.driveAudioFileId}?alt=media`, {
+          headers: { Authorization: `Bearer ${googleAccessToken}` }
+        });
+        const audioBlob = await res.blob();
+        await dbPut("audioBlobs", { id: song.id, blob: audioBlob });
+        await selectSong(song.id);
+        logCloud(`Downloaded and cached ${song.fileName} for offline playback!`);
+      } catch (err) {
+        logCloud("Audio download failed: " + err.message);
+      }
+    }
+
+    /**************************************************************
+     * 4. CORE PLAYER, SYNTH & UI LOGIC
+     **************************************************************/
+    let songs = [];
+    let samples = [];
+    let currentFilter = "ALL";
+    let currentSongId = null;
+    let isPlaying = false;
+    let usingRealAudioFile = false;
+    let synthTimer = null;
+    let synthTimeElapsed = 0;
+    const SYNTH_DURATION = 16;
+    let audioCtx = null;
+    const htmlAudio = document.getElementById("htmlAudioPlayer");
+
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    }
+
+    function triggerSynthSound(type, pitchOffset = 0) {
+      ensureAudioContext();
+      const now = audioCtx.currentTime;
+      if (type === "808" || type === "kick") {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type === "808" ? "triangle" : "sine";
+        osc.frequency.setValueAtTime(type === "808" ? 110 + pitchOffset : 150, now);
+        osc.frequency.exponentialRampToValueAtTime(type === "808" ? 36 : 42, now + (type === "808" ? 0.45 : 0.15));
+        gain.gain.setValueAtTime(0.8, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (type === "808" ? 0.65 : 0.22));
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + (type === "808" ? 0.66 : 0.24));
+      } else if (type === "snare" || type === "hat") {
+        const bufferSize = audioCtx.sampleRate * (type === "snare" ? 0.18 : 0.05);
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = type === "snare" ? "bandpass" : "highpass";
+        filter.frequency.value = type === "snare" ? 1800 : 7000;
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(type === "snare" ? 0.5 : 0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + (type === "snare" ? 0.18 : 0.05));
+        noise.connect(filter).connect(gain).connect(audioCtx.destination);
+        noise.start(now);
+      } else {
+        [220, 261.63, 329.63, 392.0].forEach((f) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(f + pitchOffset, now);
+          const filter = audioCtx.createBiquadFilter();
+          filter.type = "lowpass";
+          filter.frequency.setValueAtTime(1600, now);
+          filter.frequency.exponentialRampToValueAtTime(280, now + 0.5);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+          osc.connect(filter).connect(gain).connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.56);
+        });
+      }
+    }
+
+    function getCurrentSong() {
+      return songs.find((s) => s.id === currentSongId) || songs[0];
+    }
+
+    function formatTime(sec) {
+      const s = Math.max(0, Math.floor(sec || 0));
+      const mins = Math.floor(s / 60);
+      const rem = s % 60;
+      return `${mins}:${rem < 10 ? "0" : ""}${rem}`;
+    }
+
+    function getStatusBadgeClass(status) {
+      if (status === "Demo") return "status-badge status-demo";
+      if (status === "To Mix") return "status-badge status-tomix";
+      if (status === "Verse Change") return "status-badge status-verse";
+      return "status-badge status-finished";
+    }
+
+    function renderSidebar() {
+      document.getElementById("countAll").textContent = songs.length;
+      const searchVal = document.getElementById("searchBox").value.trim().toLowerCase();
+      const listEl = document.getElementById("songMenuList");
+      listEl.innerHTML = "";
+
+      songs
+        .filter((song) => {
+          const matchesFilter = currentFilter === "ALL" || song.releaseType === currentFilter || song.status === currentFilter;
+          const matchesSearch = !searchVal || song.title.toLowerCase().includes(searchVal) || song.project.toLowerCase().includes(searchVal);
+          return matchesFilter && matchesSearch;
+        })
+        .forEach((song) => {
+          const li = document.createElement("li");
+          li.className = "menu-item" + (song.id === currentSongId ? " active" : "");
+          li.innerHTML = `
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px;">${song.title}</span>
+            <span class="badge">${song.driveAudioFileId ? "☁️" : song.bpm}</span>
+          `;
+          li.addEventListener("click", () => selectSong(song.id));
+          listEl.appendChild(li);
+        });
+    }
+
+    async function selectSong(songId) {
+      stopPlayback();
+      currentSongId = songId;
+      const song = getCurrentSong();
+      if (!song) return;
+
+      document.getElementById("songTitleInput").value = song.title;
+      document.getElementById("releaseTypeSelect").value = song.releaseType;
+      document.getElementById("projectNameInput").value = song.project;
+      document.getElementById("statusTagSelect").value = song.status;
+      document.getElementById("bpmInput").value = song.bpm;
+      document.getElementById("keyInput").value = song.key;
+      document.getElementById("fileNameDisplay").textContent = "Audio: " + (song.fileName || "Synth Preview");
+      document.getElementById("lyricsTextarea").value = song.lyrics || "";
+
+      const driveLabel = document.getElementById("driveFileStatusLabel");
+      if (song.driveAudioFileId) {
+        driveLabel.textContent = "SYNCED ON DRIVE";
+        driveLabel.style.color = "var(--lcd-highlight)";
+      } else {
+        driveLabel.textContent = "LOCAL ONLY";
+        driveLabel.style.color = "var(--lcd-muted)";
+      }
+
+      const badge = document.getElementById("statusBadge");
+      badge.textContent = song.status;
+      badge.className = getStatusBadgeClass(song.status);
+
+      const storedBlobObj = await dbGet("audioBlobs", song.id);
+      if (storedBlobObj && storedBlobObj.blob) {
+        usingRealAudioFile = true;
+        htmlAudio.src = URL.createObjectURL(storedBlobObj.blob);
+      } else {
+        usingRealAudioFile = false;
+        htmlAudio.removeAttribute("src");
+        synthTimeElapsed = 0;
+        document.getElementById("currentTimeLabel").textContent = "0:00";
+        document.getElementById("durationLabel").textContent = formatTime(SYNTH_DURATION);
+        document.getElementById("seekSlider").value = 0;
+      }
+
+      renderRepairs();
+      renderSidebar();
+      drawWaveform();
+    }
+
+    function renderRepairs() {
+      const song = getCurrentSong();
+      if (!song) return;
+      const fullList = document.getElementById("fullRepairList");
+      const previewList = document.getElementById("deckRepairPreview");
+      fullList.innerHTML = "";
+      previewList.innerHTML = "";
+
+      (song.repairs || []).forEach((rep) => {
+        const createRow = (isCompact) => {
+          const li = document.createElement("li");
+          li.className = "repair-item" + (rep.done ? " done" : "");
+          li.innerHTML = `
+            <div style="display:flex; align-items:center; gap:7px; flex:1;">
+              <input type="checkbox" ${rep.done ? "checked" : ""} />
+              <span class="repair-time-chip">@ ${rep.time}</span>
+              <span>${rep.text}</span>
+            </div>
+            ${!isCompact ? `<button class="btn-small" style="padding:2px 6px;">✕</button>` : ""}
+          `;
+          li.querySelector("input[type='checkbox']").addEventListener("change", (e) => {
+            rep.done = e.target.checked;
+            saveCurrentSong();
+            renderRepairs();
+          });
+          li.querySelector(".repair-time-chip").addEventListener("click", () => {
+            const parts = rep.time.split(":");
+            seekToSeconds(parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10));
+          });
+          const delBtn = li.querySelector("button");
+          if (delBtn) {
+            delBtn.addEventListener("click", () => {
+              song.repairs = song.repairs.filter((r) => r.id !== rep.id);
+              saveCurrentSong();
+              renderRepairs();
+            });
+          }
+          return li;
+        };
+        fullList.appendChild(createRow(false));
+        if (!rep.done) previewList.appendChild(createRow(true));
+      });
+    }
+
+    function renderSamples() {
+      const grid = document.getElementById("sampleGrid");
+      grid.innerHTML = "";
+      document.getElementById("activePackCount").textContent = `PACKS: ${samples.length} PADS`;
+
+      samples.forEach((smp) => {
+        const pad = document.createElement("div");
+        pad.className = "sample-pad";
+        pad.innerHTML = `<span class="sample-name">${smp.name}</span><span class="sample-pack-tag">${smp.pack}</span>`;
+        pad.addEventListener("click", () => {
+          pad.classList.add("playing");
+          setTimeout(() => pad.classList.remove("playing"), 180);
+          if (smp.blob) {
+            new Audio(URL.createObjectURL(smp.blob)).play();
+          } else {
+            triggerSynthSound(smp.synthType || "808");
+          }
+        });
+        grid.appendChild(pad);
+      });
+    }
+
+    async function saveCurrentSong() {
+      const song = getCurrentSong();
+      if (!song) return;
+      await dbPut("songs", song);
+      renderSidebar();
+    }
+
+    function togglePlayback() {
+      isPlaying ? stopPlayback() : startPlayback();
+    }
+
+    function startPlayback() {
+      const song = getCurrentSong();
+      if (!song) return;
+      isPlaying = true;
+      document.getElementById("playStateLabel").textContent = "PLAYING";
+
+      if (usingRealAudioFile && htmlAudio.src) {
+        htmlAudio.play();
+      } else {
+        const stepMs = (60 / (song.bpm || 140) / 2) * 1000;
+        let step = 0;
+        synthTimer = setInterval(() => {
+          synthTimeElapsed += stepMs / 1000;
+          if (synthTimeElapsed >= SYNTH_DURATION) synthTimeElapsed = 0;
+          if (step % 8 === 0) triggerSynthSound("808", (song.bpm % 30) - 10);
+          if (step % 8 === 4) triggerSynthSound("snare");
+          if (step % 2 === 0) triggerSynthSound("hat");
+          if (step % 16 === 0) triggerSynthSound("chord");
+          step++;
+          updateTransportUI(synthTimeElapsed, SYNTH_DURATION);
+          drawWaveform();
+        }, stepMs);
+      }
+    }
+
+    function stopPlayback() {
+      isPlaying = false;
+      document.getElementById("playStateLabel").textContent = "PAUSED";
+      if (synthTimer) { clearInterval(synthTimer); synthTimer = null; }
+      if (!htmlAudio.paused) htmlAudio.pause();
+      drawWaveform();
+    }
+
+    function seekToSeconds(sec) {
+      if (usingRealAudioFile && htmlAudio.duration) {
+        htmlAudio.currentTime = Math.min(sec, htmlAudio.duration);
+        updateTransportUI(htmlAudio.currentTime, htmlAudio.duration);
+      } else {
+        synthTimeElapsed = Math.min(sec, SYNTH_DURATION);
+        updateTransportUI(synthTimeElapsed, SYNTH_DURATION);
+      }
+      drawWaveform();
+    }
+
+    function updateTransportUI(current, total) {
+      document.getElementById("currentTimeLabel").textContent = formatTime(current);
+      document.getElementById("durationLabel").textContent = formatTime(total);
+      document.getElementById("seekSlider").value = total > 0 ? (current / total) * 100 : 0;
+    }
+
+    htmlAudio.addEventListener("timeupdate", () => {
+      if (usingRealAudioFile) {
+        updateTransportUI(htmlAudio.currentTime, htmlAudio.duration || 1);
+        drawWaveform();
+      }
+    });
+    htmlAudio.addEventListener("ended", stopPlayback);
+
+    function drawWaveform() {
+      const canvas = document.getElementById("waveformCanvas");
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      const song = getCurrentSong();
+      const seed = song ? song.title.length * 7 + Number(song.bpm || 120) : 42;
+      const progress = Number(document.getElementById("seekSlider").value) / 100;
+      const bars = 48;
+      const barWidth = (w - bars * 2) / bars;
+
+      for (let i = 0; i < bars; i++) {
+        const ratio = i / bars;
+        const pseudoRand = Math.abs(Math.sin(seed + i * 0.65) * Math.cos(i * 0.3));
+        const liveJitter = isPlaying ? Math.random() * 0.22 : 0;
+        const barH = Math.max(6, Math.min(h - 4, (pseudoRand * 0.75 + 0.15 + liveJitter) * h));
+        ctx.fillStyle = ratio <= progress ? "#00e5a3" : "#283b36";
+        ctx.fillRect(i * (barWidth + 2), (h - barH) / 2, barWidth, barH);
+      }
+    }
+
+    /**************************************************************
+     * 5. EVENT BINDINGS
+     **************************************************************/
+    function setupEvents() {
+      // Lock Screen PIN Pad
+      document.querySelectorAll(".pin-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const val = btn.getAttribute("data-pin");
+          if (val === "CLR") {
+            enteredPin = "";
+          } else if (val === "OK") {
+            if (enteredPin === getPinCode()) unlockVault("PIN VERIFIED");
+            else {
+              document.getElementById("lockMessage").textContent = "WRONG PIN! Try again.";
+              enteredPin = "";
+            }
+          } else if (enteredPin.length < 4) {
+            enteredPin += val;
+            if (enteredPin.length === 4) {
+              if (enteredPin === getPinCode()) unlockVault("PIN VERIFIED");
+              else {
+                document.getElementById("lockMessage").textContent = "WRONG PIN! Try again.";
+                enteredPin = "";
+              }
+            }
+          }
+          updatePinDots();
+        });
+      });
+
+      document.getElementById("lockGoogleSignInBtn").addEventListener("click", triggerGoogleLogin);
+      document.getElementById("lockDeviceBtn").addEventListener("click", lockVault);
+      document.getElementById("topDriveStatusBtn").addEventListener("click", () => {
+        document.querySelector('[data-tab="tabCloud"]').click();
+      });
+
+      // Security & Google Config Tab
+      const cfg = getSecurityConfig();
+      document.getElementById("gClientIdInput").value = cfg.clientId;
+      document.getElementById("allowedEmailInput").value = cfg.allowedEmail;
+
+      document.getElementById("saveSecurityConfigBtn").addEventListener("click", () => {
+        localStorage.setItem("pv_google_client_id", document.getElementById("gClientIdInput").value.trim());
+        localStorage.setItem("pv_allowed_email", document.getElementById("allowedEmailInput").value.trim());
+        logCloud("Saved Google OAuth Client ID and Allowed Owner Email.");
+      });
+
+      document.getElementById("connectGoogleDriveBtn").addEventListener("click", () => {
+        localStorage.setItem("pv_google_client_id", document.getElementById("gClientIdInput").value.trim());
+        localStorage.setItem("pv_allowed_email", document.getElementById("allowedEmailInput").value.trim());
+        triggerGoogleLogin();
+      });
+
+      document.getElementById("syncPushDbBtn").addEventListener("click", pushVaultDbToDrive);
+      document.getElementById("syncPullDbBtn").addEventListener("click", pullVaultDbFromDrive);
+      document.getElementById("pushBounceDriveBtn").addEventListener("click", pushCurrentAudioToDrive);
+      document.getElementById("pullBounceDriveBtn").addEventListener("click", pullCurrentAudioFromDrive);
+
+      document.getElementById("savePinBtn").addEventListener("click", () => {
+        const newPin = document.getElementById("newPinInput").value.trim();
+        if (/^\d{4}\$/.test(newPin)) {
+          localStorage.setItem("pv_studio_pin", newPin);
+          document.getElementById("newPinInput").value = "";
+          logCloud("Updated 4-digit offline studio PIN.");
+        } else {
+          alert("Enter exactly 4 digits for your studio PIN.");
+        }
+      });
+
+      // Sidebar & Tabs
+      document.querySelectorAll("#filterMenuList .menu-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          document.querySelectorAll("#filterMenuList .menu-item").forEach((el) => el.classList.remove("active"));
+          item.classList.add("active");
+          currentFilter = item.getAttribute("data-filter");
+          renderSidebar();
+        });
+      });
+
+      document.getElementById("searchBox").addEventListener("input", renderSidebar);
+
+      const tabs = Array.from(document.querySelectorAll(".ws-tab"));
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          tabs.forEach((t) => t.classList.remove("active"));
+          document.querySelectorAll(".ws-content").forEach((c) => c.classList.remove("active"));
+          tab.classList.add("active");
+          document.getElementById(tab.getAttribute("data-tab")).classList.add("active");
+        });
+      });
+
+      // Live Field Bindings
+      const bindMeta = (id, prop) => {
+        document.getElementById(id).addEventListener("input", (e) => {
+          const song = getCurrentSong();
+          if (!song) return;
+          song[prop] = e.target.value;
+          if (prop === "status") {
+            const badge = document.getElementById("statusBadge");
+            badge.textContent = song.status;
+            badge.className = getStatusBadgeClass(song.status);
+          }
+          saveCurrentSong();
+        });
+      };
+
+      bindMeta("songTitleInput", "title");
+      bindMeta("releaseTypeSelect", "releaseType");
+      bindMeta("projectNameInput", "project");
+      bindMeta("statusTagSelect", "status");
+      bindMeta("bpmInput", "bpm");
+      bindMeta("keyInput", "key");
+      bindMeta("lyricsTextarea", "lyrics");
+
+      document.querySelectorAll("[data-insert]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const ta = document.getElementById("lyricsTextarea");
+          const text = btn.getAttribute("data-insert").replace("\\n", "\n");
+          const start = ta.selectionStart;
+          ta.value = ta.value.slice(0, start) + "\n" + text + ta.value.slice(ta.selectionEnd);
+          const song = getCurrentSong();
+          if (song) { song.lyrics = ta.value; saveCurrentSong(); }
+          ta.focus();
+        });
+      });
+
+      document.getElementById("seekSlider").addEventListener("input", (e) => {
+        const pct = Number(e.target.value) / 100;
+        const total = usingRealAudioFile && htmlAudio.duration ? htmlAudio.duration : SYNTH_DURATION;
+        seekToSeconds(pct * total);
+      });
+
+      document.getElementById("uploadAudioBtn").addEventListener("click", () => {
+        document.getElementById("audioFileInput").click();
+      });
+
+      document.getElementById("audioFileInput").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        const song = getCurrentSong();
+        if (!file || !song) return;
+        song.audioFormat = file.name.split(".").pop().toUpperCase();
+        song.fileName = file.name;
+        await dbPut("audioBlobs", { id: song.id, blob: file });
+        await saveCurrentSong();
+        await selectSong(song.id);
+      });
+
+      function addTimestampRepair(customText) {
+        const song = getCurrentSong();
+        if (!song) return;
+        const input = document.getElementById("newRepairInput");
+        const text = customText || input.value.trim() || "Check vocal / mix level here";
+        const curSec = usingRealAudioFile && htmlAudio.src ? htmlAudio.currentTime : synthTimeElapsed;
+        song.repairs = song.repairs || [];
+        song.repairs.unshift({ id: "rep-" + Date.now(), time: formatTime(curSec), text, done: false });
+        input.value = "";
+        saveCurrentSong();
+        renderRepairs();
+      }
+
+      document.getElementById("addRepairStampBtn").addEventListener("click", () => addTimestampRepair());
+      document.getElementById("newRepairInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") addTimestampRepair();
+      });
+
+      document.getElementById("jumpToRepairsBtn").addEventListener("click", () => {
+        document.querySelector('[data-tab="tabRepairs"]').click();
+        document.getElementById("newRepairInput").focus();
+      });
+
+      document.getElementById("uploadSampleBtn").addEventListener("click", () => {
+        document.getElementById("sampleFileInput").click();
+      });
+
+      document.getElementById("sampleFileInput").addEventListener("change", async (e) => {
+        for (const f of Array.from(e.target.files)) {
+          const newSmp = { id: "smp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 5), name: f.name, pack: "USER PACK", blob: f };
+          samples.unshift(newSmp);
+          await dbPut("samples", newSmp);
+        }
+        renderSamples();
+      });
+
+      // Click Wheel Controls
+      document.getElementById("wheelPlayBtn").addEventListener("click", togglePlayback);
+      document.getElementById("wheelNextBtn").addEventListener("click", () => {
+        const idx = songs.findIndex((s) => s.id === currentSongId);
+        const next = songs[(idx + 1) % songs.length];
+        if (next) selectSong(next.id);
+      });
+      document.getElementById("wheelPrevBtn").addEventListener("click", () => {
+        const idx = songs.findIndex((s) => s.id === currentSongId);
+        const prev = songs[(idx - 1 + songs.length) % songs.length];
+        if (prev) selectSong(prev.id);
+      });
+      document.getElementById("wheelMenuBtn").addEventListener("click", () => {
+        const activeIdx = tabs.findIndex((t) => t.classList.contains("active"));
+        tabs[(activeIdx + 1) % tabs.length].click();
+      });
+      document.getElementById("wheelCenterBtn").addEventListener("click", () => {
+        addTimestampRepair("Quick Marker — check arrangement/mix @ timestamp");
+      });
+
+      document.getElementById("newProjectBtn").addEventListener("click", async () => {
+        const newSong = {
+          id: "song-" + Date.now(),
+          title: "UNTITLED IDEA " + (songs.length + 1),
+          project: "NEW PROJECT",
+          releaseType: "Single",
+          status: "Demo",
+          bpm: 140,
+          key: "A Min",
+          audioFormat: "SYNTH DEMO",
+          fileName: "Drop .WAV or .MP3 bounce",
+          driveAudioFileId: null,
+          lyrics: "[VERSE 1]\n",
+          repairs: []
+        };
+        songs.unshift(newSong);
+        await dbPut("songs", newSong);
+        selectSong(newSong.id);
+      });
+
+      document.getElementById("cycleStatusBtn").addEventListener("click", () => {
+        const order = ["Demo", "To Mix", "Verse Change", "Finished"];
+        const song = getCurrentSong();
+        if (!song) return;
+        song.status = order[(order.indexOf(song.status) + 1) % order.length];
+        document.getElementById("statusTagSelect").value = song.status;
+        const badge = document.getElementById("statusBadge");
+        badge.textContent = song.status;
+        badge.className = getStatusBadgeClass(song.status);
+        saveCurrentSong();
+      });
+
+      document.getElementById("deleteSongBtn").addEventListener("click", async () => {
+        if (songs.length <= 1) return;
+        const toDelete = currentSongId;
+        songs = songs.filter((s) => s.id !== toDelete);
+        await dbDelete("songs", toDelete);
+        await dbDelete("audioBlobs", toDelete);
+        selectSong(songs[0].id);
+      });
+
+      document.getElementById("exportLocalJsonBtn").addEventListener("click", () => {
+        const payload = JSON.stringify({ exportedAt: new Date().toISOString(), songs }, null, 2);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+        a.download = "PocketVault_Projects_Backup.json";
+        a.click();
+      });
+    }
+
+    async function initApp() {
+      await openVaultDB();
+      const storedSongs = await dbGetAll("songs");
+      if (storedSongs.length > 0) songs = storedSongs;
+      else {
+        songs = DEFAULT_SONGS;
+        for (const s of songs) await dbPut("songs", s);
+      }
+
+      const storedSamples = await dbGetAll("samples");
+      if (storedSamples.length > 0) samples = storedSamples;
+      else {
+        samples = DEFAULT_SAMPLES;
+        for (const smp of samples) await dbPut("samples", smp);
+      }
+
+      setupEvents();
+      renderSamples();
+      await selectSong(songs[0].id);
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
